@@ -54,6 +54,8 @@ class SocketServer {
 				socket_strerror(socket_last_error( $this->sockServer ) ) );
 		}
 
+		printf( "Listening on %s:%d...\n", $this->address, $this->port );
+		
 		$this->_listenLoop = true;
 		
 		while( $this->_listenLoop ) {
