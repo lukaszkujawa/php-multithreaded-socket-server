@@ -4,7 +4,9 @@ Muilti Threaded Socket Server based on pcntl_fork()
 Requirements
 ---------------------
 > PHP5	
+>
 > sockets (http://www.php.net/manual/en/sockets.installation.php)
+>
 > pcntl (http://www.php.net/manual/en/pcntl.installation.php)
 
 Installation
@@ -14,5 +16,6 @@ Installation
 Run
 ---------------------
 > php server.php
+>
 > telnet 127.0.0.1 4444
 
