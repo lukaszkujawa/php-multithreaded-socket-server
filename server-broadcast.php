@@ -22,41 +22,33 @@ function onConnect( $client ) {
 	if ($pid == -1) {
 		 die('could not fork');
 	} else if ($pid) {
-		// parent process
-		return;
+		return $pid;
 	}
 	
-	$read = '';
 	printf( "[%s] Connected at port %d\n", $client->getAddress(), $client->getPort() );
 	
-	while( true ) {
-		$read = $client->read();
-		if( $read != '' ) {
-			$client->send( '[' . date( DATE_RFC822 ) . '] ' . $read  );
-		}
-		else {
-			break;
-		}
-		
-		if( preg_replace( '/[^a-z]/', '', $read ) == 'exit' ) {
-			break;
-		}
-		if( $read === null ) {
-			printf( "[%s] Disconnected\n", $client->getAddress() );
-			return false;
-		}
-		else {
-			printf( "[%s] recieved: %s", $client->getAddress(), $read );
-		}
-	}
-	$client->close();
-	printf( "[%s] Disconnected\n", $client->getAddress() );
+	\Sock\SocketServerBroadcast::broadcast( array( 'data' => "Connected\n", 'type' => 'msg' ) );
 	
+	$read = '';
+	while( true ) {
+		
+		$read = $client->read();
+		if( $read == '' ) {
+			break;
+		}
+
+		\Sock\SocketServerBroadcast::broadcast( array( 'data' => $read, 'type' => 'msg' ) );
+	}
+	
+	\Sock\SocketServerBroadcast::broadcast( array( 'type' => 'disc' ) );
+	
+	printf( "[%s] Disconnected\n", $client->getAddress() );
+	$client->close();
 }
 
-require "sock/SocketServer.php";
+require "sock/SocketServerBroadcast.php";
 
-$server = new \Sock\SocketServer();
+$server = new \Sock\SocketServerBroadcast();
 $server->init();
 $server->setConnectionHandler( 'onConnect' );
 $server->listen();
