@@ -3,33 +3,35 @@
 namespace Sock;
 
 require_once "SocketServer.php";
+require_once "SocketClientBroadcast.php";
 
 class SocketServerBroadcast extends SocketServer {
 
 	const PIPENAME = '/tmp/broadcastserver.pid';
 	
-	private static $pid;
-
-	protected $pipe;
+	protected $pid;
+	public $pipe;
 	
 	private $connections = array();
 	
 	public function __construct( $port = 4444, $address = '127.0.0.1' ) {
 		parent::__construct( $port, $address );
-		self::$pid = posix_getpid();
+		$this->pid = posix_getpid();
 		if(!file_exists(self::PIPENAME)) {
 			umask(0);
 			if( ! posix_mkfifo(self::PIPENAME, 0666 ) ) {
-				die('Cant create a pipe: ' . self::PIPENAME);
+				die('Cant create a pipe: "' . self::PIPENAME . '"');
 			}
 		}
-		
 		$this->pipe = fopen(self::PIPENAME, 'r+');
 	}
 	
 	public function handleProcess() {
-		$len = $this->bytesToInt( fread($this->pipe, 4) );
+		$header = fread($this->pipe, 4);
+		$len = $this->bytesToInt( $header );
+		
 		$message = unserialize( fread( $this->pipe, $len ) );
+		
 		if( $message['type'] == 'msg' ) {
 			$client = $this->connections[ $message['pid'] ];
 			$msg = sprintf('[%s] (%d):%s', $client->getAddress(), $message['pid'], $message['data'] );
@@ -59,19 +61,39 @@ class SocketServerBroadcast extends SocketServer {
 		parent::beforeServerLoop();
 		socket_set_nonblock( $this->sockServer );
 		pcntl_signal(SIGUSR1, array($this, 'handleProcess'), true);
+		//pcntl_signal(SIGINT, array($this, 'stop'), true);
+	}
+	
+	protected function stop() {
+		echo "\nClosing active connections...\n";
+		$this->_listenLoop = false;
+		foreach( $this->connections as $conn ) {
+			$conn->close();
+		}
+		echo "Shutting down server...\n";
+		fclose($this->pipe);
+		$this->pipe = fopen(self::PIPENAME, 'w');
+		fclose($this->pipe);
+		echo unlink( self::PIPENAME ) ? 'removed' : 'not removed';
+		pcntl_wait($status);
 	}
 	
 	protected function serverLoop() {
 		while( $this->_listenLoop ) {
 			if( ( $client = @socket_accept( $this->sockServer ) ) === false ) {
 				$info = array();
-				if( pcntl_sigtimedwait(array(SIGUSR1),$info,1) > 0 ) {
-					$this->handleProcess();
+				if( pcntl_sigtimedwait(array(SIGUSR1, SIGINT),$info,1) > 0 ) {
+					if( $info['signo'] == SIGINT ) {
+						$this->stop();	
+					}
+					else{
+						$this->handleProcess();
+					}
 				}
 				continue;
 			}
 				
-			$socketClient = new SocketClient( $client );
+			$socketClient = new SocketClientBroadcast( $client, $this );
 			
 			if( is_array( $this->connectionHandler ) ) {
 				$object = $this->connectionHandler[0];
@@ -83,21 +105,30 @@ class SocketServerBroadcast extends SocketServer {
 				$childPid = $function( $socketClient );
 			}
 			
+			if( ! $childPid ) {
+				// force child process to exit from loop
+				return;		
+			}
+			
 			$this->connections[ $childPid ] = $socketClient;
 		}
-		unlink(self::PIPENAME);
+		
 	}
 	
-	static function broadcast( Array $msg ) {
+	public function broadcast( Array $msg ) {
 		$msg['pid'] = posix_getpid();
 		$message = serialize( $msg );
-		$f = fopen(self::PIPENAME, 'w');
-		fwrite($f, self::strlenInBytes($message) . $message);
+		$f = fopen(self::PIPENAME, 'w+');
+		if( !$f ) {
+			echo "ERROR: Can't open PIPE for writting\n";
+			return;
+		}
+		fwrite($f, $this->strlenInBytes($message) . $message );
 		fclose($f);
-		posix_kill(self::$pid, SIGUSR1);
+		posix_kill($this->pid, SIGUSR1);
 	}
 
-	static function strlenInBytes($str) {
+	protected function strlenInBytes($str) {
 		$len = strlen($str);
 		$chars = chr( $len & 0xFF );
 		$chars .= chr( ($len >> 8 ) & 0xFF );

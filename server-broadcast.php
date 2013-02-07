@@ -27,7 +27,7 @@ function onConnect( $client ) {
 	
 	printf( "[%s] Connected at port %d\n", $client->getAddress(), $client->getPort() );
 	
-	\Sock\SocketServerBroadcast::broadcast( array( 'data' => "Connected\n", 'type' => 'msg' ) );
+	$client->connected();
 	
 	$read = '';
 	while( true ) {
@@ -36,14 +36,12 @@ function onConnect( $client ) {
 		if( $read == '' ) {
 			break;
 		}
-
-		\Sock\SocketServerBroadcast::broadcast( array( 'data' => $read, 'type' => 'msg' ) );
+		$client->sendBroadcast( $read );
 	}
 	
-	\Sock\SocketServerBroadcast::broadcast( array( 'type' => 'disc' ) );
+	$client->disconnected();
 	
 	printf( "[%s] Disconnected\n", $client->getAddress() );
-	$client->close();
 }
 
 require "sock/SocketServerBroadcast.php";
