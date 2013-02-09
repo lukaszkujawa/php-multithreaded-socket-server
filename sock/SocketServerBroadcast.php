@@ -61,32 +61,14 @@ class SocketServerBroadcast extends SocketServer {
 		parent::beforeServerLoop();
 		socket_set_nonblock( $this->sockServer );
 		pcntl_signal(SIGUSR1, array($this, 'handleProcess'), true);
-		//pcntl_signal(SIGINT, array($this, 'stop'), true);
-	}
-	
-	protected function stop() {
-		echo "\nClosing active connections...\n";
-		$this->_listenLoop = false;
-		foreach( $this->connections as $conn ) {
-			$conn->close();
-		}
-		echo "Shutting down server...\n";
-		fclose($this->pipe);
-		$this->pipe = fopen(self::PIPENAME, 'w');
-		fclose($this->pipe);
-		echo unlink( self::PIPENAME ) ? 'removed' : 'not removed';
-		pcntl_wait($status);
 	}
 	
 	protected function serverLoop() {
 		while( $this->_listenLoop ) {
 			if( ( $client = @socket_accept( $this->sockServer ) ) === false ) {
 				$info = array();
-				if( pcntl_sigtimedwait(array(SIGUSR1, SIGINT),$info,1) > 0 ) {
-					if( $info['signo'] == SIGINT ) {
-						$this->stop();	
-					}
-					else{
+				if( pcntl_sigtimedwait(array(SIGUSR1),$info,1) > 0 ) {
+					if( $info['signo'] == SIGUSR1 ) {
 						$this->handleProcess();
 					}
 				}
