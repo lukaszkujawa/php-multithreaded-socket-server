@@ -50,7 +50,7 @@ class SocketServer {
 	public function listen() {
 		if( socket_listen($this->sockServer, 5) === false) {
 			throw new SocketException( 
-				SocketException::CANT_BIND_SOCKET, 
+				SocketException::CANT_LISTEN, 
 				socket_strerror(socket_last_error( $this->sockServer ) ) );
 		}
 
