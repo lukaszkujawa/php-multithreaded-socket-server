@@ -20,6 +20,8 @@ Run
 > php server.php
 >
 > telnet 127.0.0.1 4444
+
+
 ---------------------
 
 Run for better debugging of incoming bytes. Output is similar to Unix command ```hexdump -C```
