@@ -12,6 +12,7 @@ class SocketServer {
 	protected $port;
 	protected $_listenLoop;
 	protected $connectionHandler;
+	protected $show_log=true;
 	
 	public function __construct( $port = 4444, $address = '127.0.0.1' ) {
 		$this->address = $address;
@@ -62,7 +63,17 @@ class SocketServer {
 	}
 	
 	protected function beforeServerLoop() {
-		printf( "Listening on %s:%d...\n", $this->address, $this->port );
+		$this->log( "Listening on {$this->address}:{$this->port}...\n");
+	}
+
+	public function showLog($bool=true) {
+		$this->show_log=$bool;
+	}
+
+	protected function log($msg) {
+		if($this->show_log){
+			echo($msg);
+		}
 	}
 	
 	protected function serverLoop() {
