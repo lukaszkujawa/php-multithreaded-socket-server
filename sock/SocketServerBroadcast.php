@@ -35,12 +35,11 @@ class SocketServerBroadcast extends SocketServer {
 		if( $message['type'] == 'msg' ) {
 			$client = $this->connections[ $message['pid'] ];
 			$msg = sprintf('[%s] (%d):%s', $client->getAddress(), $message['pid'], $message['data'] );
-			printf( "Broadcast: %s", $msg );
+			$this->log( "Broadcast: $msg\n");
 			foreach( $this->connections as $pid => $conn ) {
 				if( $pid == $message['pid'] ) {
 					continue;
 				}
-				
 				$conn->send( $msg );
 			}
 		}
@@ -102,7 +101,7 @@ class SocketServerBroadcast extends SocketServer {
 		$message = serialize( $msg );
 		$f = fopen(self::PIPENAME, 'w+');
 		if( !$f ) {
-			echo "ERROR: Can't open PIPE for writting\n";
+			$this->log("ERROR: Can't open PIPE for writting\n");
 			return;
 		}
 		fwrite($f, $this->strlenInBytes($message) . $message );
